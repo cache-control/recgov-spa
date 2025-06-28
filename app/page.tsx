@@ -1,5 +1,6 @@
 'use client';
 
+import { ReactElement } from 'react';
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 export default function CampgroundSearch() {
-    const [ campgrounds, setCampgrounds ] = useState([]);
-    const [ availableSites, setAvailableSites ] = useState([]);
-    const [ errorMessage, setErrorMessage ] = useState("");
-    const [ campInfo, setCampInfo ] = useState({
-        camp: null,
+    interface DynObj {
+        [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any 
+    }
+
+    const defaultCamp : DynObj = {
+        entity_id: 0,
+    };
+
+    const campInfoDefault : DynObj = {
+        camp: defaultCamp,
         availableDate: new Date().toISOString().slice(0, 7) + '-01T00%3A00%3A00.000Z',
-    });
+    };
+
+    const emptyDynObjArray : DynObj[] = [];
+
+    const [ campgrounds, setCampgrounds ] = useState(emptyDynObjArray);
+    const [ availableSites, setAvailableSites ] = useState(emptyDynObjArray);
+    const [ errorMessage, setErrorMessage ] = useState("");
+    const [ campInfo, setCampInfo ] = useState(campInfoDefault);
 
     const formSchema = z.object({
         keywords: z.string().min(3).max(50),
@@ -37,26 +50,26 @@ export default function CampgroundSearch() {
         const cacheKey = `${campId},${start}`;
 
         if (cacheKey in camp == false) {
-            let availableSites = [];
-            let payload = {};
+            const reservableSites = emptyDynObjArray;
+            let payload : DynObj = {};
 
             try {
                 const url = `https://www.recreation.gov/api/camps/availability/campground/${campId}/month?start_date=${start}`;
-                let response = await fetch(url);
+                const response = await fetch(url);
                 payload = await response.json();
             } catch {
                 setErrorMessage("Network failure while retrieving campground.");
                 return;
             }
 
-            for (let key in payload.campsites) {
+            for (const key in payload.campsites) {
                 const site = payload.campsites[key];
                 let expectedDayAsNum = 0;
-                let days = [];
-                let contig = [];
-                let span = [];
+                const days : string[] = [];
+                let contig : string[] = [];
+                const span = [];
 
-                for (let date in site.availabilities) {
+                for (const date in site.availabilities) {
                     if (site.availabilities[date] === 'Available') {
                         const day = date.slice(5,10).replace('-','/');
                         const dayAsNum = Number(day.replace('/',''));
@@ -85,7 +98,7 @@ export default function CampgroundSearch() {
                 if (days.length) {
                     let spanColor = "";
 
-                    availableSites.push({
+                    reservableSites.push({
                         site: site.site,
                         loop: site.loop,
                         campsite_id: site.campsite_id,
@@ -99,7 +112,7 @@ export default function CampgroundSearch() {
                 }
             }
 
-            camp[cacheKey] = availableSites.sort( (a,b) => a.days.localeCompare(b.days) );
+            camp[cacheKey] = reservableSites.sort( (a,b) => a.days.localeCompare(b.days) );
             setCampgrounds( [ ...campgrounds ] );
         }
 
@@ -109,10 +122,10 @@ export default function CampgroundSearch() {
 
     async function onSubmitSearch(value: z.infer<typeof formSchema>) {
         const url = 'https://www.recreation.gov/api/search?exact=false&size=30&q=' + encodeURI(value.keywords);
-        let payload = {};
+        let payload : DynObj = {};
 
         try {
-            let response = await fetch(url);
+            const response = await fetch(url);
             payload = await response.json();
         } catch {
             setErrorMessage("Network failure during search.");
@@ -121,32 +134,32 @@ export default function CampgroundSearch() {
 
         if ('results' in payload) {
             setErrorMessage("");
-            campInfo.camp = null;
+            campInfo.camp = defaultCamp;
             setCampInfo( { ...campInfo } );
 
-            setAvailableSites([]);
-            setCampgrounds( () => payload.results.filter(camp => camp.reservable && camp.entity_type==="campground") );
+            setAvailableSites(emptyDynObjArray);
+            setCampgrounds( () => payload.results.filter( (camp:DynObj) => camp.reservable && camp.entity_type==="campground") );
         } else {
             setErrorMessage("No matching campgrounds...");
         }
     }
 
-    function onClickSelectCampground(idx) {
+    function onClickSelectCampground(idx: number) {
         campInfo.camp = campgrounds.at(idx);
         setCampInfo( { ...campInfo } );
-        setErrorMessage();
+        setErrorMessage("");
         getAvailableSites();
     }
 
-    function onClickSetDate(date) {
+    function onClickSetDate(date: string) {
         campInfo.availableDate =  date;
         setCampInfo( { ...campInfo } );
 
-        setErrorMessage();
+        setErrorMessage("");
         getAvailableSites();
     }
 
-    function SearchForm(params) {
+    function SearchForm() {
         return (
         <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitSearch)} className="space-y-8">
@@ -172,7 +185,7 @@ export default function CampgroundSearch() {
         );
     }
 
-    function CampgroundPanel(params) {
+    function CampgroundPanel() {
         if (campgrounds.length < 1) 
             return;
 
@@ -207,19 +220,18 @@ export default function CampgroundSearch() {
     // generate date values for buttons
     const date = new Date();
     const currentMonth = date.getUTCMonth();
-    const tabsTrigger = [];
+    const tabsTrigger : ReactElement[] = [];
 
     for (let step = 0; step < 6; step++) {
         date.setUTCMonth(currentMonth + step);
         const isoDate = date.toISOString().slice(0, 7) + '-01T00%3A00%3A00.000Z';
         const monthName = date.toUTCString().split(" ").at(2);
-        const key = `step${step}`;
 
         tabsTrigger.push(<TabsTrigger key={isoDate} value={isoDate} onClick={()=>onClickSetDate(isoDate)}>{monthName}</TabsTrigger>)
     }
 
     function CampsitePanel() {
-        if (! campInfo.camp)
+        if (campInfo.camp.entity_id == 0)
             return;
 
         return (
