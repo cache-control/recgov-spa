@@ -245,10 +245,6 @@ export default function CampgroundSearch() {
 
         return (
         <>
-        <center>
-            <label className="mx-auto font-bold">{campInfo.camp.name}</label>
-        </center>
-
         <Tabs defaultValue={campInfo.availableDate} className="w-[400px] mt-2">
             <div>
                 <label className="cursor-pointer mr-2" onClick={onClickBackToCampgrounds}>◀&nbsp;Back</label>
@@ -257,6 +253,10 @@ export default function CampgroundSearch() {
                 </TabsList>
             </div>
         </Tabs>
+
+        <center>
+            <label className="mx-auto font-bold">{campInfo.camp.name}</label>
+        </center>
 
         {availableSites?.length > 0 &&
         <Table className="border p-4 mt-2">
