@@ -151,6 +151,11 @@ export default function CampgroundSearch() {
         getAvailableSites();
     }
 
+    function onClickBackToCampgrounds() {
+        campInfo.camp = defaultCamp;
+        setCampInfo( { ...campInfo } );
+    }
+
     function onClickSetDate(date: string) {
         campInfo.availableDate =  date;
         setCampInfo( { ...campInfo } );
@@ -186,6 +191,9 @@ export default function CampgroundSearch() {
     }
 
     function CampgroundPanel() {
+        if (campInfo.camp.entity_id != 0)
+            return;
+
         if (campgrounds.length < 1) 
             return;
 
@@ -236,10 +244,17 @@ export default function CampgroundSearch() {
 
         return (
         <>
+        <center>
+            <label className="mx-auto font-bold">{campInfo.camp.name}</label>
+        </center>
+
         <Tabs defaultValue={campInfo.availableDate} className="w-[400px] mt-2">
-            <TabsList>
-                {...tabsTrigger}
-            </TabsList>
+            <div>
+                <label className="cursor-pointer mr-2" onClick={onClickBackToCampgrounds}>◀&nbsp;Back</label>
+                <TabsList>
+                    {...tabsTrigger}
+                </TabsList>
+            </div>
         </Tabs>
 
         {availableSites?.length > 0 &&
