@@ -154,6 +154,7 @@ export default function CampgroundSearch() {
     function onClickBackToCampgrounds() {
         campInfo.camp = defaultCamp;
         setCampInfo( { ...campInfo } );
+        setErrorMessage("");
     }
 
     function onClickSetDate(date: string) {
