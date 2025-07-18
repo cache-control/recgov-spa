@@ -16,6 +16,19 @@ export default function CampgroundSearch() {
         [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any 
     }
 
+    interface Site {
+        site: string;
+        loop: string;
+        campsite_id: string;
+        campsite_type: string;
+        days: string;
+        daysSpan: ReactElement[];
+    }
+
+    interface CampsiteProps {
+        sites: Site[];
+    }
+
     const defaultCamp : DynObj = {
         entity_id: 0,
     };
@@ -28,7 +41,7 @@ export default function CampgroundSearch() {
     const emptyDynObjArray : DynObj[] = [];
 
     const [ campgrounds, setCampgrounds ] = useState(emptyDynObjArray);
-    const [ availableSites, setAvailableSites ] = useState(emptyDynObjArray);
+    const [ availableSites, setAvailableSites ] = useState([]);
     const [ errorMessage, setErrorMessage ] = useState("");
     const [ campInfo, setCampInfo ] = useState(campInfoDefault);
 
@@ -50,7 +63,7 @@ export default function CampgroundSearch() {
         const cacheKey = `${campId},${start}`;
 
         if (cacheKey in camp == false) {
-            const reservableSites = emptyDynObjArray;
+            const reservableSites : Site[] = [];
             let payload : DynObj = {};
 
             try {
@@ -137,7 +150,7 @@ export default function CampgroundSearch() {
             campInfo.camp = defaultCamp;
             setCampInfo( { ...campInfo } );
 
-            setAvailableSites(emptyDynObjArray);
+            setAvailableSites([]);
             setCampgrounds( () => payload.results.filter( (camp:DynObj) => camp.reservable && camp.entity_type==="campground") );
         } else {
             setErrorMessage("No matching campgrounds...");
@@ -239,9 +252,8 @@ export default function CampgroundSearch() {
         tabsTrigger.push(<TabsTrigger key={isoDate} value={isoDate} onClick={()=>onClickSetDate(isoDate)}>{monthName}</TabsTrigger>)
     }
 
-    function CampsitePanel() {
-        if (campInfo.camp.entity_id == 0)
-            return;
+    function CampsitePanel({ sites } : CampsiteProps) {
+        const campsiteBaseUrl = 'https://www.recreation.gov/camping/campsites/';
 
         return (
         <>
@@ -258,7 +270,7 @@ export default function CampgroundSearch() {
             <label className="mx-auto font-bold">{campInfo.camp.name}</label>
         </center>
 
-        {availableSites?.length > 0 &&
+        {sites?.length > 0 &&
         <Table className="border p-4 mt-2">
             <TableHeader className="sticky top-0">
                 <TableRow>
@@ -269,10 +281,10 @@ export default function CampgroundSearch() {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {availableSites.map( (site,idx) =>
+                {sites.map( (site,idx) =>
                 <TableRow key={idx}>
                     <TableCell className="font-medium underline">
-                        <a href={'https://www.recreation.gov/camping/campsites/'+site.campsite_id} target="_blank">{site.site}</a>
+                        <a href={campsiteBaseUrl+site.campsite_id} target="_blank">{site.site}</a>
                     </TableCell>
                     <TableCell>{site.loop}</TableCell>
                     <TableCell>{site.campsite_type}</TableCell>
@@ -296,7 +308,7 @@ export default function CampgroundSearch() {
 
             <div className="m-2">
                 <CampgroundPanel/>
-                <CampsitePanel/>
+                {campInfo.camp.entity_id > 0 && <CampsitePanel sites={availableSites} />}
             </div>
         </>
     )
