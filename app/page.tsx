@@ -138,8 +138,10 @@ export default function CampgroundSearch() {
                         campsite_type: site.campsite_type,
                         days: days.join(","),
                         daysSpan: span.map( (contig,idx) => {
+                                const shorten = [ contig.at(0) ];
+                                if (contig.length>1) shorten.push(contig.at(-1));
                                 spanColor = spanColor.length? "" : "text-blue-800";
-                                return <span key={idx} className={spanColor}>{contig.join(",")} </span>
+                                return <span key={idx} className={spanColor}>{shorten.join("-")} </span>
                             } ),
                     });
                 }
