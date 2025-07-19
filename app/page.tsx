@@ -16,17 +16,39 @@ export default function CampgroundSearch() {
         [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any 
     }
 
+    interface Campground {
+        campsites_count: string;
+        city: string;
+        entity_id: string;
+        entity_type: string;
+        name: string;
+        parent_name: string;
+        reservable: boolean;
+        state_code: string;
+    }
+
     interface Site {
-        site: string;
-        loop: string;
         campsite_id: string;
         campsite_type: string;
-        days: string;
         daysSpan: ReactElement[];
+        days: string;
+        loop: string;
+        site: string;
+    }
+
+    interface SearchBarProps {
+        onSubmitSearch: (value: z.infer<typeof formSchema>) => void;
+    }
+
+    interface CampgroundProps {
+        campgrounds: Campground[];
+        onCampgroundClick: (idx: number) => void;
     }
 
     interface CampsiteProps {
         sites: Site[];
+        onClickBackToCampgrounds: () => void;
+        onClickSetDate: (date: string) => void;
     }
 
     const defaultCamp : DynObj = {
@@ -38,10 +60,8 @@ export default function CampgroundSearch() {
         availableDate: new Date().toISOString().slice(0, 7) + '-01T00%3A00%3A00.000Z',
     };
 
-    const emptyDynObjArray : DynObj[] = [];
-
-    const [ campgrounds, setCampgrounds ] = useState(emptyDynObjArray);
-    const [ availableSites, setAvailableSites ] = useState([]);
+    const [ campgrounds, setCampgrounds ] = useState<Campground[]>([]);
+    const [ availableSites, setAvailableSites ] = useState<Site[]>([]);
     const [ errorMessage, setErrorMessage ] = useState("");
     const [ campInfo, setCampInfo ] = useState(campInfoDefault);
 
@@ -133,9 +153,9 @@ export default function CampgroundSearch() {
         setErrorMessage(camp[cacheKey].length>0? "":"No reservable campsites.");
     }
 
-    async function onSubmitSearch(value: z.infer<typeof formSchema>) {
+    async function handleSubmitSearch(value: z.infer<typeof formSchema>) {
         const url = 'https://www.recreation.gov/api/search?exact=false&size=30&q=' + encodeURI(value.keywords);
-        let payload : DynObj = {};
+        let payload : { results: Campground[] };
 
         try {
             const response = await fetch(url);
@@ -151,26 +171,30 @@ export default function CampgroundSearch() {
             setCampInfo( { ...campInfo } );
 
             setAvailableSites([]);
-            setCampgrounds( () => payload.results.filter( (camp:DynObj) => camp.reservable && camp.entity_type==="campground") );
+            setCampgrounds(
+                payload.results.filter(
+                    camp => camp.reservable && camp.entity_type==="campground"
+                )
+            );
         } else {
             setErrorMessage("No matching campgrounds...");
         }
     }
 
-    function onClickSelectCampground(idx: number) {
+    function handleSelectCampground(idx: number) {
         campInfo.camp = campgrounds.at(idx);
         setCampInfo( { ...campInfo } );
         setErrorMessage("");
         getAvailableSites();
     }
 
-    function onClickBackToCampgrounds() {
+    function handleClickBackToCampgrounds() {
         campInfo.camp = defaultCamp;
         setCampInfo( { ...campInfo } );
         setErrorMessage("");
     }
 
-    function onClickSetDate(date: string) {
+    function handleClickSetDate(date: string) {
         campInfo.availableDate =  date;
         setCampInfo( { ...campInfo } );
 
@@ -178,7 +202,7 @@ export default function CampgroundSearch() {
         getAvailableSites();
     }
 
-    function SearchForm() {
+    function SearchBar({ onSubmitSearch } : SearchBarProps) {
         return (
         <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmitSearch)} className="space-y-8">
@@ -204,10 +228,7 @@ export default function CampgroundSearch() {
         );
     }
 
-    function CampgroundPanel() {
-        if (campInfo.camp.entity_id != 0)
-            return;
-
+    function CampgroundPanel({ onCampgroundClick, campgrounds } : CampgroundProps) {
         if (campgrounds.length < 1) 
             return;
 
@@ -225,10 +246,9 @@ export default function CampgroundSearch() {
                 {campgrounds.map( (camp,idx) =>
                 <TableRow key={idx}>
                     <TableCell>{camp.campsites_count}</TableCell>
-                    {camp===campInfo.camp? 
-                    <TableCell className="font-medium bg-blue-200">{camp.name}</TableCell>
-                    :<TableCell className="font-medium underline cursor-pointer" onClick={()=>onClickSelectCampground(idx)}>{camp.name}</TableCell>
-                    }
+                    <TableCell className="font-medium underline cursor-pointer"
+                        onClick={()=>onCampgroundClick(idx)}>{camp.name}
+                    </TableCell>
                     <TableCell>{camp.parent_name}</TableCell>
                     <TableCell className="text-right">{camp.city}, {camp.state_code}</TableCell>
                 </TableRow>
@@ -239,27 +259,35 @@ export default function CampgroundSearch() {
         );
     }
 
-    // generate date values for buttons
-    const date = new Date();
-    const currentMonth = date.getUTCMonth();
-    const tabsTrigger : ReactElement[] = [];
-
-    for (let step = 0; step < 6; step++) {
-        date.setUTCMonth(currentMonth + step);
-        const isoDate = date.toISOString().slice(0, 7) + '-01T00%3A00%3A00.000Z';
-        const monthName = date.toUTCString().split(" ").at(2);
-
-        tabsTrigger.push(<TabsTrigger key={isoDate} value={isoDate} onClick={()=>onClickSetDate(isoDate)}>{monthName}</TabsTrigger>)
-    }
-
-    function CampsitePanel({ sites } : CampsiteProps) {
+    function CampsitePanel({ onClickBackToCampgrounds, onClickSetDate, sites } : CampsiteProps) {
         const campsiteBaseUrl = 'https://www.recreation.gov/camping/campsites/';
+        const date = new Date();
+        const currentMonth = date.getUTCMonth();
+        const tabsTrigger : ReactElement[] = [];
+
+        for (let step = 0; step < 6; step++) {
+            date.setUTCMonth(currentMonth + step);
+            const isoDate = date.toISOString().slice(0, 7) + '-01T00%3A00%3A00.000Z';
+            const monthName = date.toUTCString().split(" ").at(2);
+
+            tabsTrigger.push(
+                <TabsTrigger
+                    key={isoDate}
+                    value={isoDate}
+                    onClick={()=>onClickSetDate(isoDate)}
+                >
+                    {monthName}
+                </TabsTrigger>
+            )
+        }
 
         return (
         <>
         <Tabs defaultValue={campInfo.availableDate} className="w-[400px] mt-2">
             <div>
-                <label className="cursor-pointer mr-2" onClick={onClickBackToCampgrounds}>◀&nbsp;Back</label>
+                <label className="cursor-pointer mr-2" onClick={onClickBackToCampgrounds}>
+                    ◀&nbsp;Back
+                </label>
                 <TabsList>
                     {...tabsTrigger}
                 </TabsList>
@@ -284,7 +312,7 @@ export default function CampgroundSearch() {
                 {sites.map( (site,idx) =>
                 <TableRow key={idx}>
                     <TableCell className="font-medium underline">
-                        <a href={campsiteBaseUrl+site.campsite_id} target="_blank">{site.site}</a>
+                        <a href={campsiteBaseUrl + site.campsite_id} target="_blank">{site.site}</a>
                     </TableCell>
                     <TableCell>{site.loop}</TableCell>
                     <TableCell>{site.campsite_type}</TableCell>
@@ -303,12 +331,25 @@ export default function CampgroundSearch() {
     return (
         <>
             <div className="flex items-center justify-center gap-2 mt-2">
-                <SearchForm/>
+                <SearchBar
+                    onSubmitSearch={handleSubmitSearch}
+                />
             </div>
 
             <div className="m-2">
-                <CampgroundPanel/>
-                {campInfo.camp.entity_id > 0 && <CampsitePanel sites={availableSites} />}
+                {campInfo.camp.entity_id == 0 &&
+                    <CampgroundPanel
+                        onCampgroundClick={handleSelectCampground}
+                        campgrounds={campgrounds}
+                    />
+                }
+                {campInfo.camp.entity_id > 0 &&
+                    <CampsitePanel
+                        onClickSetDate={handleClickSetDate}
+                        onClickBackToCampgrounds={handleClickBackToCampgrounds}
+                        sites={availableSites}
+                    />
+                }
             </div>
         </>
     )
